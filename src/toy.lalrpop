@@ -1,0 +1,71 @@
+use crate::ast::*;
+use std::str::FromStr;
+use generational_arena::{Arena, Index};
+
+#[LALR]
+grammar(arena: &mut Arena<AstNode>);
+
+match {
+    "(" => L_PAREN,
+    ")" => R_PAREN,
+    "+" => PLUS,
+    "-" => MINUS,
+    "*" => STAR,
+    "/" => SLASH,
+    "=" => EQUAL,
+    ";" => SEMICOLON,
+    "print" => PRINT,
+
+    r"0|([1-9][0-9]*)",
+    r"[a-zA-Z_$][0-9a-zA-Z_$]*",
+    r"\s*" => {},
+}
+
+IDENTIFIER : String = {
+    r"[a-zA-Z_$][0-9a-zA-Z_$]*" => <>.to_string()
+}
+
+IntegerLiteral: u32 = {
+    // normal integers
+    r"0|([1-9][0-9]*)" => u32::from_str(<>).unwrap()
+}
+
+Term : Index = {
+    L_PAREN <Expression> R_PAREN,
+    IntegerLiteral =>
+        AstNode::new_expression(arena, Expression::Literal(<>)),
+    IDENTIFIER =>
+        AstNode::new_expression(arena, Expression::Var(<>)),
+}
+
+Factor : Index = {
+    <a:Factor> STAR <b:Term> =>
+        AstNode::new_expression(arena, Expression::Times(a, b)),
+    <a:Factor> SLASH <b:Term> =>
+        AstNode::new_expression(arena, Expression::Div(a, b)),
+    Term,
+}
+
+Expression : Index = {
+    <a:Expression> PLUS <b:Factor> =>
+        AstNode::new_expression(arena, Expression::Plus(a, b)),
+    <a:Expression> MINUS <b:Factor> =>
+        AstNode::new_expression(arena, Expression::Minus(a, b)),
+    Factor,
+}
+
+Declaration : Index = {
+    <id:IDENTIFIER> EQUAL <val:Expression> =>
+        AstNode::new_declaration(arena, Declaration {id, val}),
+}
+
+Statement : Index = {
+    <Declaration> SEMICOLON =>
+        AstNode::new_statement(arena, Statement::Decl(<>)),
+    PRINT <Expression> SEMICOLON =>
+        AstNode::new_statement(arena, Statement::Print(<>)),
+}
+
+pub Statements: Vec<Index> = {
+    Statement*
+}
