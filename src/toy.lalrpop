@@ -1,9 +1,8 @@
 use crate::ast::*;
 use std::str::FromStr;
-use generational_arena::{Arena, Index};
 
 #[LALR]
-grammar(arena: &mut Arena<AstNode>);
+grammar(ast: &mut Ast);
 
 match {
     "(" => L_PAREN,
@@ -30,42 +29,35 @@ IntegerLiteral: u32 = {
     r"0|([1-9][0-9]*)" => u32::from_str(<>).unwrap()
 }
 
-Term : Index = {
+Term : ExpressionKey = {
     L_PAREN <Expression> R_PAREN,
-    IntegerLiteral =>
-        AstNode::new_expression(arena, Expression::Literal(<>)),
-    IDENTIFIER =>
-        AstNode::new_expression(arena, Expression::Var(<>)),
+    IntegerLiteral => ast.insert_expr(Expression::Literal(<>)),
+    IDENTIFIER => ast.insert_expr(Expression::Var(<>)),
 }
 
-Factor : Index = {
-    <a:Factor> STAR <b:Term> =>
-        AstNode::new_expression(arena, Expression::Times(a, b)),
-    <a:Factor> SLASH <b:Term> =>
-        AstNode::new_expression(arena, Expression::Div(a, b)),
+Factor : ExpressionKey = {
+    <a:Factor> STAR <b:Term> => ast.insert_expr(Expression::Times(a, b)),
+    <a:Factor> SLASH <b:Term> => ast.insert_expr(Expression::Div(a, b)),
     Term,
 }
 
-Expression : Index = {
+Expression : ExpressionKey = {
     <a:Expression> PLUS <b:Factor> =>
-        AstNode::new_expression(arena, Expression::Plus(a, b)),
+        ast.insert_expr(Expression::Plus(a, b)),
     <a:Expression> MINUS <b:Factor> =>
-        AstNode::new_expression(arena, Expression::Minus(a, b)),
+        ast.insert_expr(Expression::Minus(a, b)),
     Factor,
 }
 
-Declaration : Index = {
-    <id:IDENTIFIER> EQUAL <val:Expression> =>
-        AstNode::new_declaration(arena, Declaration {id, val}),
+Declaration : DeclarationKey = {
+    <id:IDENTIFIER> EQUAL <val:Expression> => ast.insert_decl(Declaration {id, val})
 }
 
-Statement : Index = {
-    <Declaration> SEMICOLON =>
-        AstNode::new_statement(arena, Statement::Decl(<>)),
-    PRINT <Expression> SEMICOLON =>
-        AstNode::new_statement(arena, Statement::Print(<>)),
+Statement : StatementKey = {
+    <Declaration> SEMICOLON => ast.insert_stmt(Statement::Decl(<>)),
+    PRINT <Expression> SEMICOLON => ast.insert_stmt(Statement::Print(<>)),
 }
 
-pub Statements: Vec<Index> = {
+pub Program: Vec<StatementKey> = {
     Statement*
 }

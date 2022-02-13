@@ -1,11 +1,25 @@
-use generational_arena::{Arena, Index};
+use slotmap::{new_key_type, SlotMap};
+use std::collections::HashMap;
+
+new_key_type! {
+    pub struct ExpressionKey;
+    pub struct DeclarationKey;
+    pub struct StatementKey;
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum NodeKey {
+    Expression(ExpressionKey),
+    Declaration(DeclarationKey),
+    Statement(StatementKey),
+}
 
 #[derive(Debug)]
 pub enum Expression {
-    Plus(Index, Index),
-    Minus(Index, Index),
-    Times(Index, Index),
-    Div(Index, Index),
+    Plus(ExpressionKey, ExpressionKey),
+    Minus(ExpressionKey, ExpressionKey),
+    Times(ExpressionKey, ExpressionKey),
+    Div(ExpressionKey, ExpressionKey),
     Literal(u32),
     Var(String),
 }
@@ -13,43 +27,40 @@ pub enum Expression {
 #[derive(Debug)]
 pub struct Declaration {
     pub id: String,
-    pub val: Index,
+    pub val: ExpressionKey,
 }
 
 #[derive(Debug)]
 pub enum Statement {
-    Decl(Index),
-    Print(Index),
+    Decl(DeclarationKey),
+    Print(ExpressionKey),
 }
 
 #[derive(Debug)]
-pub enum NodeType {
-    Statement(Statement),
-    Declaration(Declaration),
-    Expression(Expression),
+pub struct Ast {
+    pub exprs: SlotMap<ExpressionKey, Expression>,
+    pub decls: SlotMap<DeclarationKey, Declaration>,
+    pub stmts: SlotMap<StatementKey, Statement>,
+
+    pub name_resolution: HashMap<NodeKey, DeclarationKey>,
 }
 
-#[derive(Debug)]
-pub struct AstNode {
-    val: NodeType,
-    declaration: Option<Index>,
-}
-
-impl AstNode {
-    pub fn new(a: &mut Arena<AstNode>, n: NodeType) -> Index {
-        a.insert(AstNode {
-            val: n,
-            declaration: None,
-        })
+impl Ast {
+    pub fn new() -> Ast {
+        Ast {
+            exprs: SlotMap::with_key(),
+            decls: SlotMap::with_key(),
+            stmts: SlotMap::with_key(),
+            name_resolution: HashMap::new(),
+        }
     }
-
-    pub fn new_statement(a: &mut Arena<AstNode>, s: Statement) -> Index {
-        AstNode::new(a, NodeType::Statement(s))
+    pub fn insert_expr(&mut self, e: Expression) -> ExpressionKey {
+        self.exprs.insert(e)
     }
-    pub fn new_expression(a: &mut Arena<AstNode>, e: Expression) -> Index {
-        AstNode::new(a, NodeType::Expression(e))
+    pub fn insert_decl(&mut self, d: Declaration) -> DeclarationKey {
+        self.decls.insert(d)
     }
-    pub fn new_declaration(a: &mut Arena<AstNode>, d: Declaration) -> Index {
-        AstNode::new(a, NodeType::Declaration(d))
+    pub fn insert_stmt(&mut self, s: Statement) -> StatementKey {
+        self.stmts.insert(s)
     }
 }
