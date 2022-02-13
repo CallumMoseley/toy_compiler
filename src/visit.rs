@@ -11,7 +11,7 @@ pub trait Visitor<T: Default, E> {
     fn visit_statement(&mut self, ast: &mut Ast, s: StatementKey) -> Result<T, E> {
         walk_statement(self, ast, s)
     }
-    fn visit_program(&mut self, ast: &mut Ast, p: Vec<StatementKey>) -> Result<T, E> {
+    fn visit_program(&mut self, ast: &mut Ast, p: &Vec<StatementKey>) -> Result<T, E> {
         walk_program(self, ast, p)
     }
 }
@@ -55,10 +55,10 @@ pub fn walk_statement<T: Default, E, V: Visitor<T, E> + ?Sized>(
 pub fn walk_program<T: Default, E, V: Visitor<T, E> + ?Sized>(
     visitor: &mut V,
     ast: &mut Ast,
-    p: Vec<StatementKey>,
+    p: &Vec<StatementKey>,
 ) -> Result<T, E> {
     for sk in p {
-        visitor.visit_statement(ast, sk)?;
+        visitor.visit_statement(ast, *sk)?;
     }
     Ok(T::default())
 }
